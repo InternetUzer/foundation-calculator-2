@@ -1,54 +1,21 @@
-from flask import Flask, render_template_string, request, send_file
+from flask import Flask, render_template, request, send_file, redirect, url_for, jsonify
 import math
 import matplotlib.pyplot as plt
 import os
+import io
+import json
+from fpdf import FPDF
 
 app = Flask(__name__)
 
-HTML_FORM = """
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Калькулятор плитного фундамента</title>
-</head>
-<body>
-    <h2>Калькулятор плитного фундамента</h2>
-    <form method="post">
-        <label>Длина плиты (м): <input type="number" step="0.01" name="A" required></label><br>
-        <label>Ширина плиты (м): <input type="number" step="0.01" name="B" required></label><br>
-        <label>Толщина плиты (м): <input type="number" step="0.01" name="H" required></label><br>
-        <label>Диаметр арматуры (мм): <input type="number" name="rebar_diameter" required></label><br>
-        <label>Шаг сетки по X (м): <input type="number" step="0.01" name="grid_x" required></label><br>
-        <label>Шаг сетки по Y (м): <input type="number" step="0.01" name="grid_y" required></label><br>
-        <label>Цена бетона за м³ (руб): <input type="number" step="0.01" name="concrete_price" required></label><br>
-        <label>Цена арматуры за кг (руб): <input type="number" step="0.01" name="steel_price" required></label><br>
-        <label>Цена опалубки за м² (руб): <input type="number" step="0.01" name="formwork_price" required></label><br>
-        <label>Процент запаса материалов (%): <input type="number" step="0.01" name="waste_factor" required></label><br>
-        <button type="submit">Рассчитать</button>
-    </form>
-    {% if results %}
-    <h3>Результаты расчета:</h3>
-    <ul>
-        <li>Объём бетона: {{ results.volume_bet }} м³</li>
-        <li>Площадь опалубки: {{ results.area_formwork }} м²</li>
-        <li>Длина арматуры: {{ results.length_rebar }} м</li>
-        <li>Масса арматуры: {{ results.mass_rebar }} кг</li>
-        <li>Стоимость бетона: {{ results.cost_concrete }} руб</li>
-        <li>Стоимость арматуры: {{ results.cost_steel }} руб</li>
-        <li>Стоимость опалубки: {{ results.cost_formwork }} руб</li>
-        <li><strong>Итоговая стоимость: {{ results.cost_total }} руб</strong></li>
-    </ul>
-    <h4>Схема армирования:</h4>
-    <img src="/sketch.png" alt="Схема армирования" style="max-width:100%;">
-    {% endif %}
-</body>
-</html>
-"""
+# === Папки ===
+os.makedirs('static', exist_ok=True)
+os.makedirs('projects', exist_ok=True)
+
+# === HTML шаблон перенесён в templates/index.html (см. ниже) ===
 
 def generate_sketch(A, B, grid_x, grid_y, filename='static/sketch.png'):
     fig, ax = plt.subplots(figsize=(10, 6))
-    # сетка по X (вертикальные линии)
     x_lines = int(A / grid_x) + 1
     y_lines = int(B / grid_y) + 1
     for i in range(x_lines):
@@ -57,7 +24,6 @@ def generate_sketch(A, B, grid_x, grid_y, filename='static/sketch.png'):
     for j in range(y_lines):
         y = j * grid_y
         ax.plot([0, A], [y, y], color='black', linewidth=0.5)
-
     ax.set_xlim(0, A)
     ax.set_ylim(0, B)
     ax.set_aspect('equal')
@@ -94,6 +60,9 @@ def calculate_foundation(data):
     generate_sketch(A, B, grid_x, grid_y)
 
     return {
+        'A': A, 'B': B, 'H': H,
+        'rebar_diameter': d * 1000,
+        'grid_x': grid_x, 'grid_y': grid_y,
         'volume_bet': round(volume_bet, 2),
         'area_formwork': round(area_formwork, 2),
         'length_rebar': round(length_rebar, 2),
@@ -109,12 +78,44 @@ def index():
     results = None
     if request.method == 'POST':
         results = calculate_foundation(request.form)
-    return render_template_string(HTML_FORM, results=results)
+    return render_template('index.html', results=results)
 
 @app.route('/sketch.png')
 def sketch():
     return send_file('static/sketch.png', mimetype='image/png')
 
+@app.route('/save', methods=['POST'])
+def save():
+    data = request.json
+    filename = data.get("name", "project") + ".json"
+    filepath = os.path.join('projects', filename)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return jsonify({"status": "saved", "file": filename})
+
+@app.route('/load/<filename>')
+def load(filename):
+    filepath = os.path.join('projects', filename)
+    with open(filepath, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    return jsonify(data)
+
+@app.route('/export/pdf', methods=['POST'])
+def export_pdf():
+    data = request.json
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt="Отчёт: Калькулятор плитного фундамента", ln=True)
+    for k, v in data.items():
+        pdf.cell(200, 10, txt=f"{k}: {v}", ln=True)
+    img_path = 'static/sketch.png'
+    if os.path.exists(img_path):
+        pdf.image(img_path, x=10, y=None, w=180)
+    pdf_output = io.BytesIO()
+    pdf.output(pdf_output)
+    pdf_output.seek(0)
+    return send_file(pdf_output, download_name="report.pdf", as_attachment=True)
+
 if __name__ == '__main__':
-    os.makedirs('static', exist_ok=True)
     app.run(host='0.0.0.0', port=5000)
