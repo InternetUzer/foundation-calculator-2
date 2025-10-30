@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор плитного фундамента</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 800px; margin-top: 30px; }
+        .card-header { font-weight: bold; }
+        .btn { margin-top: 15px; }
+        .results-section { margin-top: 30px; }
+        .result-item { padding: 5px 0; }
+        .sketch-img { width: 100%; max-width: 500px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Калькулятор плитного фундамента</h2>
+    <form method="post">
+        <div class="card">
+            <div class="card-header">Ввод данных</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="A" class="form-label">Длина плиты (м)</label>
+                    <input type="number" step="0.01" class="form-control" id="A" name="A" required>
+                </div>
+                <div class="mb-3">
+                    <label for="B" class="form-label">Ширина плиты (м)</label>
+                    <input type="number" step="0.01" class="form-control" id="B" name="B" required>
+                </div>
+                <div class="mb-3">
+                    <label for="H" class="form-label">Толщина плиты (м)</label>
+                    <input type="number" step="0.01" class="form-control" id="H" name="H" required>
+                </div>
+                <div class="mb-3">
+                    <label for="rebar_diameter" class="form-label">Диаметр арматуры (мм)</label>
+                    <input type="number" class="form-control" id="rebar_diameter" name="rebar_diameter" required>
+                </div>
+                <div class="mb-3">
+                    <label for="grid_x" class="form-label">Шаг сетки по X (м)</label>
+                    <input type="number" step="0.01" class="form-control" id="grid_x" name="grid_x" required>
+                </div>
+                <div class="mb-3">
+                    <label for="grid_y" class="form-label">Шаг сетки по Y (м)</label>
+                    <input type="number" step="0.01" class="form-control" id="grid_y" name="grid_y" required>
+                </div>
+                <div class="mb-3">
+                    <label for="concrete_price" class="form-label">Цена бетона за м³ (руб)</label>
+                    <input type="number" step="0.01" class="form-control" id="concrete_price" name="concrete_price" required>
+                </div>
+                <div class="mb-3">
+                    <label for="steel_price" class="form-label">Цена арматуры за кг (руб)</label>
+                    <input type="number" step="0.01" class="form-control" id="steel_price" name="steel_price" required>
+                </div>
+                <div class="mb-3">
+                    <label for="formwork_price" class="form-label">Цена опалубки за м² (руб)</label>
+                    <input type="number" step="0.01" class="form-control" id="formwork_price" name="formwork_price" required>
+                </div>
+                <div class="mb-3">
+                    <label for="waste_factor" class="form-label">Процент запаса материалов (%)</label>
+                    <input type="number" step="0.01" class="form-control" id="waste_factor" name="waste_factor" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Рассчитать</button>
+            </div>
+        </div>
+    </form>
+
+    {% if results %}
+    <div class="results-section card mt-4">
+        <div class="card-header">Результаты расчёта</div>
+        <div class="card-body">
+            <ul class="list-unstyled">
+                <li class="result-item">Объём бетона: {{ results.volume_bet }} м³</li>
+                <li class="result-item">Площадь опалубки: {{ results.area_formwork }} м²</li>
+                <li class="result-item">Длина арматуры: {{ results.length_rebar }} м</li>
+                <li class="result-item">Масса арматуры: {{ results.mass_rebar }} кг</li>
+                <li class="result-item">Стоимость бетона: {{ results.cost_concrete }} руб</li>
+                <li class="result-item">Стоимость арматуры: {{ results.cost_steel }} руб</li>
+                <li class="result-item">Стоимость опалубки: {{ results.cost_formwork }} руб</li>
+                <hr>
+                <li class="result-item"><strong>Итоговая стоимость: {{ results.cost_total }} руб</strong></li>
+            </ul>
+
+            <div class="text-center">
+                <h5>Схема армирования:</h5>
+                <img src="/sketch.png" alt="Схема армирования" class="sketch-img">
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="/export/pdf" class="btn btn-success">Сгенерировать PDF</a>
+                <a href="#" class="btn btn-secondary">Экспорт в CSV</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
